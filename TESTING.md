@@ -1,0 +1,65 @@
+# Testing Fader
+
+Every change gets two kinds of checks before it's saved as done.
+
+## 1. Automated checks (a few seconds)
+
+```bash
+./check.sh
+```
+
+This runs all automated tests and builds the app. If it says ❌, the change isn't done.
+
+## 2. Manual checks (about 5 minutes)
+
+These cover what a computer can't check: whether you actually *hear* the difference.
+Open the freshly built app first:
+
+```bash
+open build/Fader.app
+```
+
+If macOS asks for System Audio Recording again, allow it. The app is signed ad hoc, so each
+rebuild can look like a new app to macOS.
+
+### Every version (quick check)
+
+- [ ] Fader's icon appears in the menu bar and the menu opens
+- [ ] Play music (Spotify, Music or a YouTube video). The app appears in the list with a green dot
+- [ ] Drag its slider down: the sound gets quieter right away, with no crackling
+- [ ] Drag it back to 100%: normal volume, no gap or click
+- [ ] Mute and unmute it: the sound stops and comes back
+- [ ] Other apps playing at the same time are not affected
+
+### When a change touches volume memory or devices
+
+- [ ] Set an app to 30% on one output (e.g. JBL), switch to another output (e.g. AirPods) and set 70%
+- [ ] Switch back and forth: each output gets its own volume back
+- [ ] Quit Fader and reopen it: the volumes are still remembered
+- [ ] Settings → "Saved volumes per output device" lists them; the ✕ button forgets one
+
+### When a change touches shortcuts
+
+- [ ] Quit Fader, reopen it, and **without opening the menu** press a shortcut: it works
+- [ ] A shortcut for a specific app controls that app even when another app is in front
+- [ ] A "Frontmost app" shortcut controls the app you're using
+- [ ] Holding volume up or down keeps changing the volume; the on-screen overlay shows the level
+- [ ] Recording a combination another app already uses shows the ⚠️ warning
+
+### When a change touches the audio engine (`AppTap.swift`, `MixerModel.swift`)
+
+Run everything above, plus:
+
+- [ ] Bluetooth: lower an app's volume while on AirPods or another Bluetooth device, then start a call or open a mic app (the audio format changes). Sound continues afterwards
+- [ ] Unplug or disconnect the current output while audio plays: it moves to the next output at the right volume
+- [ ] Quit Fader while an app is turned down: the app goes back to normal volume
+- [ ] Leave music playing for 10 minutes with the volume lowered: no dropouts. Activity Monitor shows Fader using little CPU
+
+## When something breaks
+
+1. Write down what you did and what happened.
+2. Stream the logs while reproducing it, and paste them into Claude:
+   ```bash
+   /usr/bin/log stream --predicate 'subsystem == "com.ryan.Fader"' --level debug
+   ```
+3. When the bug is fixed, a test that reproduces it gets added so it can't quietly come back.

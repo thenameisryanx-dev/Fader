@@ -1,0 +1,134 @@
+import AppKit
+import SwiftUI
+
+struct MenuView: View {
+    let model: MixerModel
+    let openSettings: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            header
+
+            if model.permission != .authorized {
+                PermissionBanner(model: model)
+            }
+
+            Divider()
+
+            if model.rows.isEmpty {
+                Text("No apps are playing audio")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+            } else if model.rows.count > 7 {
+                ScrollView { rowList }.frame(height: 380)
+            } else {
+                rowList
+            }
+
+            Divider()
+
+            HStack {
+                Button("Settings…", action: openSettings)
+                Spacer()
+                Button("Quit Fader") { NSApp.terminate(nil) }
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(14)
+        .frame(width: 340)
+    }
+
+    private var header: some View {
+        HStack {
+            Text("Fader").font(.headline)
+            Spacer()
+            if let device = model.outputDevice {
+                Label(device.name, systemImage: "hifispeaker.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private var rowList: some View {
+        VStack(spacing: 10) {
+            ForEach(model.rows) { row in
+                AppRowView(row: row, model: model)
+            }
+        }
+    }
+}
+
+private struct AppRowView: View {
+    let row: MixerModel.AppRow
+    let model: MixerModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ZStack(alignment: .bottomTrailing) {
+                if let icon = row.icon {
+                    Image(nsImage: icon).resizable().frame(width: 24, height: 24)
+                } else {
+                    Image(systemName: "app.fill").frame(width: 24, height: 24)
+                }
+                if row.isPlaying {
+                    Circle().fill(.green).frame(width: 7, height: 7)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(row.name).font(.callout).lineLimit(1)
+                Slider(
+                    value: Binding(
+                        get: { Double(row.volume) },
+                        set: { model.setVolume(Float($0), for: row.id) }
+                    ),
+                    in: 0...1
+                )
+                .controlSize(.small)
+                .disabled(row.isMuted)
+            }
+
+            Button {
+                model.toggleMute(row.id)
+            } label: {
+                Image(systemName: row.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .frame(width: 18)
+                    .foregroundStyle(row.isMuted ? .red : .secondary)
+            }
+            .buttonStyle(.borderless)
+            .help(row.isMuted ? "Unmute" : "Mute")
+
+            Text(row.isMuted ? "–" : "\(Int((row.volume * 100).rounded()))%")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 34, alignment: .trailing)
+        }
+    }
+}
+
+private struct PermissionBanner: View {
+    let model: MixerModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Fader needs System Audio Recording access to change app volumes.")
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                if model.permission == .denied {
+                    Button("Open System Settings") {
+                        NSWorkspace.shared.open(AudioCapturePermission.settingsURL)
+                    }
+                } else {
+                    Button("Allow Access") { model.requestPermission() }
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.yellow.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
