@@ -17,7 +17,8 @@ the first time it comes up, and say what he needs to do by hand (e.g. which manu
    Never delete or weaken a test to make it pass. If a test is wrong, explain why before changing it.
 4. Update `TESTING.md` when a feature needs a manual check (anything you have to hear or click),
    and tell Ryan exactly which manual checks this change needs.
-5. Commit only after `./check.sh` passes and Ryan confirms the manual checks. Then merge the branch into `main`.
+5. Commit only after `./check.sh` passes and Ryan confirms the manual checks. Then merge the branch into `main`
+   and `git push` it: GitHub (public repo thenameisryanx-dev/Fader) is the only backup.
 
 ## Code rules
 
