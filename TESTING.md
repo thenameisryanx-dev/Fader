@@ -55,6 +55,12 @@ Run everything above, plus:
 - [ ] Quit Fader while an app is turned down: the app goes back to normal volume
 - [ ] Leave music playing for 10 minutes with the volume lowered: no dropouts. Activity Monitor shows Fader using little CPU
 
+### When a change touches packaging (`package.sh`)
+
+- [ ] Run `./package.sh`, then double-click `build/Fader.dmg`: a window shows Fader, an Applications shortcut and "How to open Fader.txt"
+- [ ] Drag Fader onto Applications, eject the disk image, and open Fader from Applications: it runs (run the quick check above)
+- [ ] Before sending a new version to someone, test on another Mac or user account if you can: the "Open Anyway" steps in the text file work
+
 ## When something breaks
 
 1. Write down what you did and what happened.

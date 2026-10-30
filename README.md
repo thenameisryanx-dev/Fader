@@ -18,6 +18,17 @@ The app is signed ad hoc, so macOS may ask again after each rebuild.
 
 Settings live in `~/Library/Application Support/Fader/settings.json`.
 
+## Sharing it
+
+```bash
+./package.sh
+```
+
+This builds `build/Fader.dmg` with the app, an Applications shortcut and "How to open Fader.txt".
+The app isn't signed with an Apple Developer ID, so on other Macs macOS blocks it the first time;
+the text file explains how to allow it via **System Settings → Privacy & Security → Open Anyway**.
+It runs on Apple Silicon Macs with macOS 15 or newer.
+
 ## Checking changes
 
 Run `./check.sh` (all automated tests and the app build) after every change, then the manual checks

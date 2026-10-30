@@ -34,4 +34,5 @@ the first time it comes up, and say what he needs to do by hand (e.g. which manu
 - `./check.sh`: all automated checks (tests and app build)
 - `swift test`: tests only
 - `./build.sh` then `open build/Fader.app`: build and run
+- `./package.sh`: build `build/Fader.dmg` to send to other people
 - Logs: `/usr/bin/log stream --predicate 'subsystem == "com.ryan.Fader"' --level debug`
