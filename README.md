@@ -3,6 +3,7 @@
 A menu bar per-app volume mixer for macOS 15+.
 
 - A volume slider and mute button for every app that plays audio
+- An overall volume slider for the current output, kept in step with the volume keys
 - Volumes are remembered per app **per output device** (Spotify at 30% on speakers, 70% on AirPods)
 - Global keyboard shortcuts bound to a specific app or to the frontmost app, active from launch
 

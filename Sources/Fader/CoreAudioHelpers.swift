@@ -81,6 +81,32 @@ enum CA {
         guard status == noErr, let ref else { return nil }
         return ref.takeRetainedValue() as String
     }
+
+    /// Whether the object has this property and it can be changed.
+    static func isSettable(
+        _ object: AudioObjectID,
+        _ selector: AudioObjectPropertySelector,
+        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal
+    ) -> Bool {
+        var addr = address(selector, scope: scope)
+        guard AudioObjectHasProperty(object, &addr) else { return false }
+        var settable: DarwinBoolean = false
+        return AudioObjectIsPropertySettable(object, &addr, &settable) == noErr && settable.boolValue
+    }
+
+    @discardableResult
+    static func set<T>(
+        _ object: AudioObjectID,
+        _ selector: AudioObjectPropertySelector,
+        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
+        _ value: T
+    ) -> Bool {
+        var addr = address(selector, scope: scope)
+        let size = UInt32(MemoryLayout<T>.size)
+        return withUnsafePointer(to: value) {
+            AudioObjectSetPropertyData(object, &addr, 0, nil, size, $0) == noErr
+        }
+    }
 }
 
 /// Registers a Core Audio property listener for as long as the object is alive.

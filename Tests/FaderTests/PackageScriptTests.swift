@@ -42,7 +42,7 @@ struct PackageScriptTests {
         let mountPoint = workDir.appendingPathComponent("mounted")
         try #require(try run("/usr/bin/hdiutil",
                              ["attach", "-nobrowse", "-readonly", "-mountpoint", mountPoint.path, dmg.path]) == 0)
-        defer { try? run("/usr/bin/hdiutil", ["detach", mountPoint.path, "-force"]) }
+        defer { _ = try? run("/usr/bin/hdiutil", ["detach", mountPoint.path, "-force"]) }
 
         let files = FileManager.default
         let copiedApp = mountPoint.appendingPathComponent("Fader.app/Contents/MacOS/Fader")

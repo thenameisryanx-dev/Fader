@@ -1,4 +1,5 @@
 import AppKit
+import AudioToolbox
 import CoreAudio
 import Observation
 import os
@@ -25,6 +26,7 @@ final class MixerModel {
     private(set) var rows: [AppRow] = []
     private(set) var outputDevice: OutputDevice?
     private(set) var permission: AudioCapturePermission.Status = .unknown
+    let mainVolume = MainVolumeModel()
 
     @ObservationIgnored let store: SettingsStore
 
@@ -292,6 +294,7 @@ final class MixerModel {
 
     private func observe(_ device: OutputDevice?) {
         deviceListeners = []
+        mainVolume.attach(device.map { DeviceVolumeControl(deviceID: $0.id) })
         guard let device else { return }
         // A sample-rate switch (e.g. AirPods entering call mode) invalidates the aggregate devices.
         deviceListeners = [
@@ -299,6 +302,14 @@ final class MixerModel {
                 self?.scheduleRebuild()
             },
         ]
+        // Keep the overall volume row in step with the volume keys and Control Center.
+        for selector in [kAudioHardwareServiceDeviceProperty_VirtualMainVolume, kAudioDevicePropertyMute] {
+            deviceListeners.append(
+                PropertyListener(object: device.id, selector: selector, scope: kAudioObjectPropertyScopeOutput) {
+                    [weak self] in self?.mainVolume.reload()
+                }
+            )
+        }
     }
 
     private func scheduleRebuild() {

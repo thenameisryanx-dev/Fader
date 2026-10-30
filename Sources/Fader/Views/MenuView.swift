@@ -9,6 +9,10 @@ struct MenuView: View {
         VStack(alignment: .leading, spacing: 12) {
             header
 
+            if model.mainVolume.isAvailable {
+                MainVolumeRowView(main: model.mainVolume)
+            }
+
             if model.permission != .authorized {
                 PermissionBanner(model: model)
             }
@@ -66,7 +70,14 @@ private struct AppRowView: View {
     let model: MixerModel
 
     var body: some View {
-        HStack(spacing: 8) {
+        VolumeRowView(
+            name: row.name,
+            volume: row.volume,
+            isMuted: row.isMuted,
+            canMute: true,
+            setVolume: { model.setVolume($0, for: row.id) },
+            toggleMute: { model.toggleMute(row.id) }
+        ) {
             ZStack(alignment: .bottomTrailing) {
                 if let icon = row.icon {
                     Image(nsImage: icon).resizable().frame(width: 24, height: 24)
@@ -77,31 +88,68 @@ private struct AppRowView: View {
                     Circle().fill(.green).frame(width: 7, height: 7)
                 }
             }
+        }
+    }
+}
+
+/// The output device's own volume, the same one the volume keys change.
+private struct MainVolumeRowView: View {
+    let main: MainVolumeModel
+
+    var body: some View {
+        VolumeRowView(
+            name: "Overall volume",
+            volume: main.volume,
+            isMuted: main.isMuted,
+            canMute: main.canMute,
+            setVolume: main.setVolume,
+            toggleMute: main.toggleMute
+        ) {
+            Image(systemName: "speaker.wave.3.fill")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 24)
+        }
+    }
+}
+
+/// Icon, name, slider, mute button and percentage: one line of the mixer.
+private struct VolumeRowView<Icon: View>: View {
+    let name: String
+    let volume: Float
+    let isMuted: Bool
+    let canMute: Bool
+    let setVolume: (Float) -> Void
+    let toggleMute: () -> Void
+    @ViewBuilder let icon: Icon
+
+    var body: some View {
+        HStack(spacing: 8) {
+            icon
 
             VStack(alignment: .leading, spacing: 0) {
-                Text(row.name).font(.callout).lineLimit(1)
+                Text(name).font(.callout).lineLimit(1)
                 Slider(
                     value: Binding(
-                        get: { Double(row.volume) },
-                        set: { model.setVolume(Float($0), for: row.id) }
+                        get: { Double(volume) },
+                        set: { setVolume(Float($0)) }
                     ),
                     in: 0...1
                 )
                 .controlSize(.small)
-                .disabled(row.isMuted)
+                .disabled(isMuted)
             }
 
-            Button {
-                model.toggleMute(row.id)
-            } label: {
-                Image(systemName: row.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+            Button(action: toggleMute) {
+                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                     .frame(width: 18)
-                    .foregroundStyle(row.isMuted ? .red : .secondary)
+                    .foregroundStyle(isMuted ? .red : .secondary)
             }
             .buttonStyle(.borderless)
-            .help(row.isMuted ? "Unmute" : "Mute")
+            .disabled(!canMute)
+            .help(isMuted ? "Unmute" : "Mute")
 
-            Text(row.isMuted ? "–" : "\(Int((row.volume * 100).rounded()))%")
+            Text(isMuted ? "–" : "\(Int((volume * 100).rounded()))%")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 34, alignment: .trailing)

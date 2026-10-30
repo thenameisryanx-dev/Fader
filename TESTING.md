@@ -38,6 +38,15 @@ rebuild can look like a new app to macOS.
 - [ ] Quit Fader and reopen it: the volumes are still remembered
 - [ ] Settings → "Saved volumes per output device" lists them; the ✕ button forgets one
 
+### When a change touches the overall volume row
+
+- [ ] The "Overall volume" row at the top shows the same level as the volume in Control Center
+- [ ] Drag its slider: everything gets louder or quieter, and Control Center's slider moves with it
+- [ ] Press the volume keys on the keyboard with the menu open: the row's slider follows
+- [ ] Its mute button mutes everything (the volume keys' mute does the same and the row shows –)
+- [ ] With an app turned down in Fader, lowering the overall volume makes that app quieter too
+- [ ] Switch outputs (e.g. speakers to AirPods): the row shows the new output's volume
+
 ### When a change touches shortcuts
 
 - [ ] Quit Fader, reopen it, and **without opening the menu** press a shortcut: it works
