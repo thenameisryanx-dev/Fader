@@ -46,6 +46,9 @@ rebuild can look like a new app to macOS.
 - [ ] Its mute button mutes everything (the volume keys' mute does the same and the row shows –)
 - [ ] With an app turned down in Fader, lowering the overall volume makes that app quieter too
 - [ ] Switch outputs (e.g. speakers to AirPods): the row shows the new output's volume
+- [ ] On the JBL Go 4 (USB), drag the overall slider quickly back and forth for about 10 seconds:
+      the menu never freezes, the slider stays under your finger, and when you let go the sound
+      settles at the level the slider shows
 
 ### When a change touches shortcuts
 
