@@ -48,11 +48,17 @@ final class MixerModel {
     @ObservationIgnored private var lastFrontmostBundleID: String?
     @ObservationIgnored private var lastControlledBundleID: String?
 
-    private static let hiddenBundleIDs: Set<String> = [
+    private nonisolated static let hiddenBundleIDs: Set<String> = [
         "com.apple.coreaudiod",
         "com.apple.systemsoundserverd",
+        "systemsoundserverd",  // what Core Audio actually reports for system sounds
         "com.apple.audio.AudioComponentRegistrar",
     ]
+
+    /// System audio processes that aren't apps the user would want to turn down.
+    nonisolated static func isHidden(_ bundleID: String) -> Bool {
+        hiddenBundleIDs.contains(bundleID)
+    }
 
     init(store: SettingsStore) {
         self.store = store
@@ -210,7 +216,7 @@ final class MixerModel {
         var next: [String: LiveApp] = [:]
         for process in processes where process.pid != ownPID {
             guard let identity = resolver.identity(for: process),
-                  !Self.hiddenBundleIDs.contains(identity.key) else { continue }
+                  !Self.isHidden(identity.key) else { continue }
             var app = next[identity.key] ?? LiveApp(
                 identity: identity,
                 processIDs: [],

@@ -65,6 +65,8 @@ Run everything above, plus:
 - [ ] Bluetooth: lower an app's volume while on AirPods or another Bluetooth device, then start a call or open a mic app (the audio format changes). Sound continues afterwards
 - [ ] Unplug or disconnect the current output while audio plays: it moves to the next output at the right volume
 - [ ] Quit Fader while an app is turned down: the app goes back to normal volume
+- [ ] Play an alert sound (`osascript -e beep`): it plays at normal volume, and the list
+      shows no "systemsoundserverd" row
 - [ ] Leave music playing for 10 minutes with the volume lowered: no dropouts. Activity Monitor shows Fader using little CPU
 
 ### When a change touches packaging (`package.sh`)
