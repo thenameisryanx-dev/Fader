@@ -69,6 +69,15 @@ Run everything above, plus:
       shows no "systemsoundserverd" row
 - [ ] Leave music playing for 10 minutes with the volume lowered: no dropouts. Activity Monitor shows Fader using little CPU
 
+### When a change touches the launcher (`Open Fader.command`)
+
+- [ ] With Fader not running, double-click `Open Fader.command` in Finder: a Terminal window shows
+      the build, then Fader's icon appears in the menu bar
+- [ ] With an app turned down in Fader, double-click it again: the old Fader quits and the new one
+      opens with only one icon in the menu bar, and the app comes back at the volume you set
+- [ ] Break the build on purpose (e.g. type `xyz` at the top of `FaderApp.swift`) and double-click it:
+      the Terminal window shows the error and the running Fader keeps working. Undo the edit afterwards
+
 ### When a change touches packaging (`package.sh`)
 
 - [ ] Run `./package.sh`, then double-click `build/Fader.dmg`: a window shows Fader, an Applications shortcut and "How to open Fader.txt"

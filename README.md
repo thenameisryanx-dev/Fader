@@ -14,6 +14,9 @@ A menu bar per-app volume mixer for macOS 15+.
 open build/Fader.app
 ```
 
+Or double-click **Open Fader.command** in Finder: it rebuilds from the latest code, quits any running
+Fader and opens the new one. You can drag it to the right side of the Dock to launch it from there.
+
 The first time you open it, click **Allow Access** in the menu and grant System Audio Recording.
 The app is signed ad hoc, so macOS may ask again after each rebuild.
 
