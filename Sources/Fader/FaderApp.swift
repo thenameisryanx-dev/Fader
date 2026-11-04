@@ -6,12 +6,9 @@ struct FaderApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
-        MenuBarExtra {
-            MenuView(model: delegate.model, openSettings: delegate.showSettings)
-        } label: {
-            Image(systemName: "slider.vertical.3")
-        }
-        .menuBarExtraStyle(.window)
+        // The menu bar icon and its menu are `MenuBarController`, set up by the delegate.
+        // A SwiftUI app needs at least one scene; this one never shows anything.
+        Settings { EmptyView() }
     }
 }
 
@@ -23,9 +20,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let hud = HUDController()
     private var repeatTimer: Timer?
     private var settingsWindow: NSWindow?
+    private var menuBar: MenuBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model.start()
+        menuBar = MenuBarController(rootView: MenuView(model: model, openSettings: { [weak self] in
+            self?.showSettings()  // first, so closing the menu leaves Fader active for Settings
+            self?.menuBar?.close()
+        }))
 
         let hotKeys = HotKeyCenter.shared
         hotKeys.onPress = { [weak self] binding in self?.hotKeyPressed(binding) }

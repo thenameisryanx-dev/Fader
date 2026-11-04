@@ -31,6 +31,17 @@ rebuild can look like a new app to macOS.
 - [ ] Mute and unmute it: the sound stops and comes back
 - [ ] Other apps playing at the same time are not affected
 
+### When a change touches the menu window (`MenuPanel.swift`)
+
+- [ ] Open the menu: no empty strip at the top, rounded corners, and it hangs just below the icon
+- [ ] The sliders are blue (not grey) while the menu is open
+- [ ] Start and stop audio in an app with the menu open: its row appears and goes away, and the
+      menu grows and shrinks with it (its top edge stays put, no empty space)
+- [ ] The menu closes when you: click the icon again, press Escape, click another app or the
+      desktop, click another menu bar icon. Afterwards you can type in the app you were using
+- [ ] Settings… opens the Settings window and closes the menu
+- [ ] Drag sliders and press the mute buttons in the menu: they work as before
+
 ### When a change touches volume memory or devices
 
 - [ ] Set an app to 30% on one output (e.g. JBL), switch to another output (e.g. AirPods) and set 70%
