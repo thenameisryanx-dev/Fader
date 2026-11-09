@@ -3,7 +3,7 @@ import CoreAudio
 import Observation
 
 /// An output device's own volume and mute: the ones the volume keys and Control Center change.
-/// Changes are made from a background thread, because some devices take seconds to answer.
+/// Read and changed from a background thread only, because some devices take seconds to answer.
 protocol OutputVolumeControl: Sendable {
     var volume: Float? { get }  // nil if this output's volume can't be changed from the Mac
     var isMuted: Bool? { get }  // nil if this output can't be muted
@@ -26,12 +26,21 @@ final class MainVolumeModel {
     @ObservationIgnored private var unsentVolume: Float?
     @ObservationIgnored private var unsentMute: Bool?
     @ObservationIgnored private var sending: Task<Void, Never>?
+    @ObservationIgnored private var reading: Task<Void, Never>?
+    /// A notification came in while a read was on its way, so read once more afterwards.
+    @ObservationIgnored private var readAgain = false
+    /// Go up on every device switch and every slider or mute change, so a read that started
+    /// before one of those can be recognised as out of date.
+    @ObservationIgnored private var attachCount = 0
+    @ObservationIgnored private var changeCount = 0
 
     /// Switches to a new output device (nil when there is none).
     func attach(_ control: (any OutputVolumeControl)?) {
         self.control = control
+        attachCount += 1
         unsentVolume = nil
         unsentMute = nil
+        show(volume: nil, isMuted: nil)  // hidden until the new device has answered
         read()
     }
 
@@ -47,6 +56,7 @@ final class MainVolumeModel {
         guard isAvailable, control != nil else { return }
         self.volume = min(max(volume, 0), 1)
         unsentVolume = self.volume
+        changeCount += 1
         send()
     }
 
@@ -54,19 +64,52 @@ final class MainVolumeModel {
         guard canMute, control != nil else { return }
         isMuted.toggle()
         unsentMute = isMuted
+        changeCount += 1
         send()
     }
 
-    /// Returns once every change has reached the device.
+    /// Returns once every change has reached the device and the row shows what it reports.
     func waitForDevice() async {
-        while let sending { await sending.value }
+        while true {
+            if let sending {
+                await sending.value
+            } else if let reading {
+                await reading.value
+            } else {
+                return
+            }
+        }
     }
 
+    /// Reads the device off the main thread: while the JBL Go 4 was stuck on a change from the
+    /// volume keys it took 5 s to report its volume, and reading on the main thread froze the menu.
+    /// One read at a time; notifications that arrive meanwhile become a single read afterwards.
     private func read() {
-        let deviceVolume = control?.volume
+        guard reading == nil else {
+            readAgain = true
+            return
+        }
+        reading = Task {
+            repeat {
+                readAgain = false
+                guard let control else { break }
+                let readingFor = (attachCount, changeCount)
+                let (volume, isMuted) = await Task.detached { (control.volume, control.isMuted) }.value
+                // Throw the answer away if the output changed meanwhile (then read the new one), or
+                // the slider or mute button was used meanwhile (`send` reads again once that's done).
+                if readingFor.0 != attachCount {
+                    readAgain = true
+                } else if readingFor.1 == changeCount, sending == nil {
+                    show(volume: volume, isMuted: isMuted)
+                }
+            } while readAgain
+            reading = nil
+        }
+    }
+
+    private func show(volume deviceVolume: Float?, isMuted deviceMute: Bool?) {
         isAvailable = deviceVolume != nil
         volume = deviceVolume ?? 1
-        let deviceMute = control?.isMuted
         canMute = deviceMute != nil
         isMuted = deviceMute ?? false
     }

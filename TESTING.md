@@ -60,6 +60,9 @@ rebuild can look like a new app to macOS.
 - [ ] On the JBL Go 4 (USB), drag the overall slider quickly back and forth for about 10 seconds:
       the menu never freezes, the slider stays under your finger, and when you let go the sound
       settles at the level the slider shows
+- [ ] On the JBL Go 4, open the menu and press the volume keys quickly about 10 times (or drag the
+      volume slider in Control Center): you can keep dragging an app's slider the whole time with
+      no spinning beachball, and a few seconds after you stop, the overall row shows the JBL's level
 
 ### When a change touches shortcuts
 
