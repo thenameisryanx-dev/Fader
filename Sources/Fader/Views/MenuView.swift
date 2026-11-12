@@ -24,8 +24,8 @@ struct MenuView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-            } else if model.rows.count > 7 {
-                ScrollView { rowList }.frame(height: 380)
+            } else if model.rows.count > 6 {
+                ScrollView { rowList }.frame(height: 400)
             } else {
                 rowList
             }
@@ -33,19 +33,23 @@ struct MenuView: View {
             Divider()
 
             HStack {
-                Button("Settings…", action: openSettings)
+                Button(action: openSettings) {
+                    Label("Settings…", systemImage: "gearshape")
+                }
+                .glassButton(shape: .capsule)
                 Spacer()
                 Button("Quit Fader") { NSApp.terminate(nil) }
+                    .glassButton(shape: .capsule)
             }
-            .buttonStyle(.borderless)
+            .controlSize(.large)
         }
-        .padding(14)
+        .padding(Theme.menuPadding)
         .frame(width: 340)
     }
 
     private var header: some View {
         HStack {
-            Text("Fader").font(.headline)
+            Text("Fader").font(.headline.weight(.semibold))
             Spacer()
             if let device = model.outputDevice {
                 Label(device.name, systemImage: "hifispeaker.fill")
@@ -57,7 +61,7 @@ struct MenuView: View {
     }
 
     private var rowList: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 14) {
             ForEach(model.rows) { row in
                 AppRowView(row: row, model: model)
             }
@@ -80,12 +84,12 @@ private struct AppRowView: View {
         ) {
             ZStack(alignment: .bottomTrailing) {
                 if let icon = row.icon {
-                    Image(nsImage: icon).resizable().frame(width: 24, height: 24)
+                    Image(nsImage: icon).resizable().frame(width: 18, height: 18)
                 } else {
-                    Image(systemName: "app.fill").frame(width: 24, height: 24)
+                    Image(systemName: "app.fill").frame(width: 18, height: 18)
                 }
                 if row.isPlaying {
-                    Circle().fill(.green).frame(width: 7, height: 7)
+                    Circle().fill(.green).frame(width: 6, height: 6)
                 }
             }
         }
@@ -105,15 +109,13 @@ private struct MainVolumeRowView: View {
             setVolume: main.setVolume,
             toggleMute: main.toggleMute
         ) {
-            Image(systemName: "speaker.wave.3.fill")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(width: 24, height: 24)
+            EmptyView()
         }
     }
 }
 
-/// Icon, name, slider, mute button and percentage: one line of the mixer.
+/// One part of the mixer, laid out like the sliders in macOS's own Control Center: the app's icon,
+/// name and percentage on top, then a speaker icon (click it to mute) in front of the slider.
 private struct VolumeRowView<Icon: View>: View {
     let name: String
     let volume: Float
@@ -124,11 +126,29 @@ private struct VolumeRowView<Icon: View>: View {
     @ViewBuilder let icon: Icon
 
     var body: some View {
-        HStack(spacing: 8) {
-            icon
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                icon
+                Text(name).lineLimit(1)
+                Spacer()
+                Text(isMuted ? "Muted" : "\(Int((volume * 100).rounded()))%")
+                    .monospacedDigit()
+            }
+            .foregroundStyle(.secondary)
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text(name).font(.callout).lineLimit(1)
+            HStack(spacing: 8) {
+                Button(action: toggleMute) {
+                    Image(systemName: Theme.speakerSymbol(volume: volume, isMuted: isMuted))
+                        .foregroundStyle(isMuted ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())  // the whole square is clickable, not just the symbol
+                }
+                .buttonStyle(.plain)
+                .disabled(!canMute)
+                .help(isMuted ? "Unmute" : "Mute")
+                .accessibilityLabel(isMuted ? "Unmute \(name)" : "Mute \(name)")
+
+                // The large size gets the Liquid Glass slider knob on macOS 26 and later.
                 Slider(
                     value: Binding(
                         get: { Double(volume) },
@@ -136,23 +156,9 @@ private struct VolumeRowView<Icon: View>: View {
                     ),
                     in: 0...1
                 )
-                .controlSize(.small)
+                .controlSize(.large)
                 .disabled(isMuted)
             }
-
-            Button(action: toggleMute) {
-                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .frame(width: 18)
-                    .foregroundStyle(isMuted ? .red : .secondary)
-            }
-            .buttonStyle(.borderless)
-            .disabled(!canMute)
-            .help(isMuted ? "Unmute" : "Mute")
-
-            Text(isMuted ? "–" : "\(Int((volume * 100).rounded()))%")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 34, alignment: .trailing)
         }
     }
 }
@@ -174,9 +180,17 @@ private struct PermissionBanner: View {
                     Button("Allow Access") { model.requestPermission() }
                 }
             }
+            .glassButton(shape: .capsule)
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.yellow.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+        // A soft grey shape, not more glass: Apple's guidelines say not to stack glass on glass.
+        .background(
+            .quaternary,
+            in: RoundedRectangle(
+                cornerRadius: Theme.concentricRadius(outer: Theme.menuCornerRadius, inset: Theme.menuPadding),
+                style: .continuous
+            )
+        )
     }
 }

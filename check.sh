@@ -16,5 +16,9 @@ if grep -q "warning:" /tmp/fader-build.log; then
     fail "build has warnings"
 fi
 
+# macOS only gives the Liquid Glass design to apps that record SDK 26 or later (see stamp-sdk.sh).
+SDK="$(xcrun vtool -show-build build/Fader.app/Contents/MacOS/Fader | awk '$1 == "sdk" { print $2; exit }')"
+[ "${SDK%%.*}" -ge 26 ] 2>/dev/null || fail "Fader.app records SDK ${SDK:-unknown}, so macOS would show the old design"
+
 echo
 echo "✅ All automated checks passed. Now run the manual checks in TESTING.md that apply to this change."

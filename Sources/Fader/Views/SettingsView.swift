@@ -59,7 +59,7 @@ private struct ShortcutRow: View {
                 .font(.body.monospaced())
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 5))
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
             Text(binding.action.title)
             Image(systemName: "arrow.right").foregroundStyle(.secondary)
             Text(targetName)

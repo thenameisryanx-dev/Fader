@@ -57,17 +57,25 @@ final class MenuPanel {
         window.hidesOnDeactivate = false
         window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient]
 
-        // The frosted background of a real menu, with rounded corners.
-        let background = NSVisualEffectView()
-        background.material = .menu
-        background.blendingMode = .behindWindow
-        background.state = .active
-        background.maskImage = Self.roundedMask(radius: 12)
-        window.contentView = background
-
-        hostingView.frame = background.bounds
         hostingView.autoresizingMask = [.width, .height]
-        background.addSubview(hostingView)
+        if #available(macOS 26, *) {
+            // Liquid Glass, like Apple's own menus on macOS 26 and later. The system adapts it
+            // for Reduce Transparency and Increase Contrast by itself.
+            let glass = NSGlassEffectView()
+            glass.cornerRadius = Theme.menuCornerRadius
+            glass.contentView = hostingView
+            window.contentView = glass
+        } else {
+            // The frosted background of a real menu, with rounded corners.
+            let background = NSVisualEffectView()
+            background.material = .menu
+            background.blendingMode = .behindWindow
+            background.state = .active
+            background.maskImage = Self.roundedMask(radius: Theme.menuCornerRadius)
+            window.contentView = background
+            hostingView.frame = background.bounds
+            background.addSubview(hostingView)
+        }
 
         sizeReporter.onChange = { [weak self] in
             // Resize after SwiftUI finishes the current layout pass, not in the middle of it.

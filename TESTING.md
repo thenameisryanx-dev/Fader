@@ -34,13 +34,28 @@ rebuild can look like a new app to macOS.
 ### When a change touches the menu window (`MenuPanel.swift`)
 
 - [ ] Open the menu: no empty strip at the top, rounded corners, and it hangs just below the icon
-- [ ] The sliders are blue (not grey) while the menu is open
+- [ ] The sliders are filled in your accent colour (blue by default, not grey) while the menu is open
 - [ ] Start and stop audio in an app with the menu open: its row appears and goes away, and the
       menu grows and shrinks with it (its top edge stays put, no empty space)
 - [ ] The menu closes when you: click the icon again, press Escape, click another app or the
       desktop, click another menu bar icon. Afterwards you can type in the app you were using
 - [ ] Settings… opens the Settings window and closes the menu
-- [ ] Drag sliders and press the mute buttons in the menu: they work as before
+- [ ] Drag sliders and click the speaker icons in the menu to mute and unmute: they work as before
+
+### When a change touches the look (`Theme.swift`, glass, buttons)
+
+- [ ] Open the menu over a colourful window or wallpaper: the background is Liquid Glass (clear,
+      bending the colours behind it at the edges), with rounder corners than before
+- [ ] Sliders have the new pill-shaped glass knob; "Settings…" and "Quit Fader" are glass capsules.
+      Each row shows the app icon, name and % on top, then a speaker icon and the slider
+- [ ] The speaker icon shows more waves as you raise the volume. Clicking it mutes (red, crossed out,
+      "Muted") and clicking again unmutes. There is only one speaker icon per row
+- [ ] The slider fill is easy to see in both light and dark mode (System Settings → Appearance)
+- [ ] Switch the accent colour to Graphite (System Settings → Appearance): the sliders turn grey. Switch it back
+- [ ] Use a volume shortcut: the on-screen overlay is glass too, with a bar in your accent colour
+- [ ] System Settings → Accessibility → Display → turn on "Reduce transparency": the menu and
+      overlay turn solid and stay readable. Turn it back off afterwards
+- [ ] Same with "Increase contrast": text and sliders stay readable
 
 ### When a change touches volume memory or devices
 
@@ -54,7 +69,7 @@ rebuild can look like a new app to macOS.
 - [ ] The "Overall volume" row at the top shows the same level as the volume in Control Center
 - [ ] Drag its slider: everything gets louder or quieter, and Control Center's slider moves with it
 - [ ] Press the volume keys on the keyboard with the menu open: the row's slider follows
-- [ ] Its mute button mutes everything (the volume keys' mute does the same and the row shows –)
+- [ ] Its speaker icon mutes everything (the volume keys' mute does the same and the row shows –)
 - [ ] With an app turned down in Fader, lowering the overall volume makes that app quieter too
 - [ ] Switch outputs (e.g. speakers to AirPods): the row shows the new output's volume
 - [ ] On the JBL Go 4 (USB), drag the overall slider quickly back and forth for about 10 seconds:

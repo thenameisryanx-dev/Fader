@@ -92,6 +92,6 @@ private struct HUDView: View {
         }
         .padding(.horizontal, 14)
         .frame(width: 280, height: 64)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .glassBackground(cornerRadius: Theme.hudCornerRadius)
     }
 }

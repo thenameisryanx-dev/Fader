@@ -11,6 +11,7 @@ APP="build/Fader.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Fader"
+./stamp-sdk.sh "$APP/Contents/MacOS/Fader"  # so macOS gives Fader the Liquid Glass design
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 codesign --force --sign - "$APP"
 echo "Built $APP"
