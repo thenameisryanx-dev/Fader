@@ -34,6 +34,8 @@ rebuild can look like a new app to macOS.
 ### When a change touches the menu window (`MenuPanel.swift`)
 
 - [ ] Open the menu: no empty strip at the top, rounded corners, and it hangs just below the icon
+- [ ] Look closely at the menu's corners over a light window: no faint square outline or shadow
+      sticking out past the rounded corners. Check again after an app's row appears or goes away
 - [ ] The sliders are filled in your accent colour (blue by default, not grey) while the menu is open
 - [ ] Start and stop audio in an app with the menu open: its row appears and goes away, and the
       menu grows and shrinks with it (its top edge stays put, no empty space)

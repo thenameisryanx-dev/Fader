@@ -98,6 +98,20 @@ struct MenuPanelTests {
         #expect(panel.window.frame.height == 180)
     }
 
+    /// Bug: on Liquid Glass a faint square outline showed around the rounded menu. The glass
+    /// view's backdrop layer (the part that blurs what's behind) is a full rectangle, and macOS
+    /// shapes the window's shadow from it. Everything in the window must be clipped to the
+    /// menu's rounded corners so the shadow follows them.
+    @Test func windowContentIsClippedToTheRoundedCorners() throws {
+        let panel = MenuPanel(rootView: FakeMenu(content: FakeContent()))
+        panel.show(below: icon, on: screen)
+        defer { panel.close() }
+        let layer = try #require(panel.window.contentView?.layer)
+        #expect(layer.masksToBounds)
+        #expect(layer.cornerRadius == Theme.menuCornerRadius)
+        #expect(layer.cornerCurve == .continuous)
+    }
+
     /// Lets SwiftUI and AppKit process the change (for up to 2 s), until `condition` holds.
     /// Tests don't run the app's event loop, so this does its window layout step by hand.
     private func waitUntil(_ panel: MenuPanel, _ condition: () -> Bool) {
