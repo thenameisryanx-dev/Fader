@@ -88,6 +88,18 @@ rebuild can look like a new app to macOS.
 - [ ] A "Frontmost app" shortcut controls the app you're using
 - [ ] Holding volume up or down keeps changing the volume; the on-screen overlay shows the level
 - [ ] Recording a combination another app already uses shows the ⚠️ warning
+- [ ] Settings → **Add Shortcut…** opens a sheet. Click the box: it turns blue and says "Press keys…".
+      Hold ⌃⌥: it shows "⌃⌥…". Press ↑: the box shows ⌃⌥↑ and **Add** turns on
+- [ ] In the box, press a plain letter: an orange message explains you need ⌃, ⌥ or ⌘, and it keeps listening
+- [ ] While the box is listening, press Esc: it stops listening and the sheet stays open.
+      Click it again, then click somewhere else in the sheet: it stops listening too
+- [ ] Right after adding a shortcut (no restart), it works, and your **older** shortcuts still work too
+- [ ] Try to add a key that another Fader shortcut already uses: an orange message names that shortcut and **Add** stays off
+- [ ] Double-click a shortcut (or click the pencil): the sheet opens filled in. Change the app and save:
+      the row updates in the same place, and the shortcut now controls the new app
+- [ ] Action → "Up, down and mute (3 shortcuts)": three boxes appear; recording all three adds three rows
+- [ ] App → "Other app…": pick an app from Applications that isn't running; it appears in the row
+- [ ] Quit and reopen Fader: all shortcuts are still there and work
 
 ### When a change touches the audio engine (`AppTap.swift`, `MixerModel.swift`)
 

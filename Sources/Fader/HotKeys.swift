@@ -8,13 +8,11 @@ struct RecordedKey: Codable, Equatable {
     var carbonModifiers: UInt32
     var keyLabel: String
 
-    var display: String {
-        var text = ""
-        if carbonModifiers & UInt32(controlKey) != 0 { text += "⌃" }
-        if carbonModifiers & UInt32(optionKey) != 0 { text += "⌥" }
-        if carbonModifiers & UInt32(shiftKey) != 0 { text += "⇧" }
-        if carbonModifiers & UInt32(cmdKey) != 0 { text += "⌘" }
-        return text + keyLabel
+    var display: String { Self.symbols(forCarbonModifiers: carbonModifiers) + keyLabel }
+
+    /// Two keys are the same shortcut when the key and modifiers match, whatever the label says.
+    func isSameCombination(as other: RecordedKey) -> Bool {
+        keyCode == other.keyCode && carbonModifiers == other.carbonModifiers
     }
 
     /// Returns nil for combinations that would be unsafe to grab globally
@@ -28,25 +26,53 @@ struct RecordedKey: Codable, Equatable {
     }
 
     init?(keyCode: Int, modifierFlags: NSEvent.ModifierFlags, characters: String?) {
+        guard case .success(let key) = Self.make(
+            keyCode: keyCode, modifierFlags: modifierFlags, characters: characters
+        ) else { return nil }
+        self = key
+    }
+
+    private init(keyCode: UInt32, carbonModifiers: UInt32, keyLabel: String) {
+        self.keyCode = keyCode
+        self.carbonModifiers = carbonModifiers
+        self.keyLabel = keyLabel
+    }
+
+    /// Turns a key press into a shortcut, or says why it can't be one.
+    static func make(
+        keyCode: Int, modifierFlags: NSEvent.ModifierFlags, characters: String?
+    ) -> Result<RecordedKey, KeyRejection> {
+        let modifiers = carbonModifiers(for: modifierFlags)
+        let isFunctionKey = functionKeys[keyCode] != nil
+        let hasAnchor = modifiers & UInt32(cmdKey | optionKey | controlKey) != 0
+        guard hasAnchor || isFunctionKey else { return .failure(.needsModifier) }
+
+        let label = functionKeys[keyCode]
+            ?? specialKeys[keyCode]
+            ?? characters?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard let label, !label.isEmpty else { return .failure(.unsupportedKey) }
+
+        return .success(RecordedKey(keyCode: UInt32(keyCode), carbonModifiers: modifiers, keyLabel: label))
+    }
+
+    static func carbonModifiers(for modifierFlags: NSEvent.ModifierFlags) -> UInt32 {
         let flags = modifierFlags.intersection(.deviceIndependentFlagsMask)
         var modifiers: UInt32 = 0
         if flags.contains(.command) { modifiers |= UInt32(cmdKey) }
         if flags.contains(.option) { modifiers |= UInt32(optionKey) }
         if flags.contains(.control) { modifiers |= UInt32(controlKey) }
         if flags.contains(.shift) { modifiers |= UInt32(shiftKey) }
+        return modifiers
+    }
 
-        let isFunctionKey = Self.functionKeys[keyCode] != nil
-        let hasAnchor = modifiers & UInt32(cmdKey | optionKey | controlKey) != 0
-        guard hasAnchor || isFunctionKey else { return nil }
-
-        let label = Self.functionKeys[keyCode]
-            ?? Self.specialKeys[keyCode]
-            ?? characters?.uppercased()
-        guard let label, !label.isEmpty else { return nil }
-
-        self.keyCode = UInt32(keyCode)
-        self.carbonModifiers = modifiers
-        self.keyLabel = label
+    /// Modifier symbols in the standard Mac order: ⌃⌥⇧⌘.
+    static func symbols(forCarbonModifiers modifiers: UInt32) -> String {
+        var text = ""
+        if modifiers & UInt32(controlKey) != 0 { text += "⌃" }
+        if modifiers & UInt32(optionKey) != 0 { text += "⌥" }
+        if modifiers & UInt32(shiftKey) != 0 { text += "⇧" }
+        if modifiers & UInt32(cmdKey) != 0 { text += "⌘" }
+        return text
     }
 
     private static let functionKeys: [Int: String] = [
@@ -63,11 +89,32 @@ struct RecordedKey: Codable, Equatable {
     ]
 }
 
+/// Why a key press can't become a shortcut, in words shown under the recorder.
+enum KeyRejection: Error, Equatable {
+    /// A plain letter, number or symbol: grabbing it everywhere would stop you typing it.
+    case needsModifier
+    /// A key with no name we can show, like a lone modifier.
+    case unsupportedKey
+
+    var message: String {
+        switch self {
+        case .needsModifier: "Add ⌃, ⌥ or ⌘ so normal typing still works (F-keys work on their own)."
+        case .unsupportedKey: "That key can't be used for a shortcut. Try another one."
+        }
+    }
+}
+
+/// The part of `HotKeyCenter` the recorder needs, so tests can use a stand-in.
+@MainActor
+protocol HotKeyPausing: AnyObject {
+    func setSuspended(_ suspended: Bool)
+}
+
 /// Global hotkeys via Carbon's RegisterEventHotKey: works without Accessibility permission
 /// and is registered at launch, not when the menu is first opened.
 @MainActor
 @Observable
-final class HotKeyCenter {
+final class HotKeyCenter: HotKeyPausing {
     static let shared = HotKeyCenter()
 
     /// Bindings the system refused, usually because another app already owns the combination.

@@ -6,24 +6,24 @@ struct SettingsView: View {
     let model: MixerModel
     let store: SettingsStore
 
+    @State private var editor: EditorRequest?
+
     var body: some View {
         Form {
             Section {
                 if store.settings.shortcuts.isEmpty {
-                    Text("No shortcuts yet").foregroundStyle(.secondary)
+                    Text("No shortcuts yet. Add one to change an app's volume from the keyboard.")
+                        .foregroundStyle(.secondary)
                 }
                 ForEach(store.settings.shortcuts) { binding in
-                    ShortcutRow(binding: binding, model: model, store: store)
+                    ShortcutRow(binding: binding, model: model, store: store) {
+                        editor = EditorRequest(draft: ShortcutDraft(editing: binding))
+                    }
                 }
-                NewShortcutRow(model: model, store: store)
-            } header: {
-                Text("Keyboard shortcuts")
-            } footer: {
-                Text("Shortcuts work as soon as Fader launches. Pick a specific app to always control it, or “Frontmost app” to control whatever you're using.")
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Shortcut step") {
+                HStack {
+                    Button("Add Shortcut…") { editor = EditorRequest(draft: ShortcutDraft()) }
+                    Spacer()
+                }
                 Picker("Each press changes volume by", selection: Binding(
                     get: { store.settings.volumeStep },
                     set: { store.setVolumeStep($0) }
@@ -32,6 +32,11 @@ struct SettingsView: View {
                     Text("5%").tag(Float(0.05))
                     Text("10%").tag(Float(0.10))
                 }
+            } header: {
+                Text("Keyboard shortcuts")
+            } footer: {
+                Text("Shortcuts work as soon as Fader launches. Pick a specific app to always control it, or “Frontmost app” to control whatever you're using. Double-click a shortcut to change it. The Mac's own volume keys can't be recorded.")
+                    .foregroundStyle(.secondary)
             }
 
             Section {
@@ -45,6 +50,23 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 520, minHeight: 520)
+        .sheet(item: $editor) { request in
+            ShortcutEditor(draft: request.draft, model: model, store: store) { editor = nil }
+        }
+    }
+}
+
+/// Opens the shortcut sheet; a new id each time so the sheet starts fresh.
+private struct EditorRequest: Identifiable {
+    let id = UUID()
+    let draft: ShortcutDraft
+}
+
+@MainActor
+private func targetName(_ target: ShortcutTarget, model: MixerModel) -> String {
+    switch target {
+    case .frontmost: "Frontmost app"
+    case .app(let bundleID): model.displayName(for: bundleID)
     }
 }
 
@@ -52,119 +74,259 @@ private struct ShortcutRow: View {
     let binding: ShortcutBinding
     let model: MixerModel
     let store: SettingsStore
+    let onEdit: () -> Void
 
     var body: some View {
-        HStack {
-            Text(binding.key.display)
-                .font(.body.monospaced())
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-            Text(binding.action.title)
-            Image(systemName: "arrow.right").foregroundStyle(.secondary)
-            Text(targetName)
+        HStack(spacing: 10) {
+            icon.frame(width: 20, height: 20)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(binding.action.title)
+                Text(targetName(binding.target, model: model))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
             if HotKeyCenter.shared.failedIDs.contains(binding.id) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
-                    .help("This combination is already used by another app or shortcut.")
+                    .help("macOS didn't accept this combination, usually because another app already uses it. Double-click to pick a different one.")
             }
+            KeyCap(text: binding.key.display)
+            Button(action: onEdit) {
+                Image(systemName: "pencil")
+            }
+            .buttonStyle(.borderless)
+            .help("Change this shortcut")
             Button {
                 store.removeShortcut(id: binding.id)
             } label: {
                 Image(systemName: "trash")
             }
             .buttonStyle(.borderless)
+            .help("Delete this shortcut")
         }
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2, perform: onEdit)
     }
 
-    private var targetName: String {
+    @ViewBuilder private var icon: some View {
         switch binding.target {
-        case .frontmost: "Frontmost app"
-        case .app(let bundleID): model.displayName(for: bundleID)
+        case .frontmost:
+            Image(systemName: "macwindow").foregroundStyle(.secondary)
+        case .app(let bundleID):
+            if let image = model.icon(for: bundleID) {
+                Image(nsImage: image).resizable()
+            } else {
+                Image(systemName: "app").foregroundStyle(.secondary)
+            }
         }
     }
 }
 
-private struct NewShortcutRow: View {
+private struct KeyCap: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.body.monospaced())
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+    }
+}
+
+/// The sheet for adding or changing shortcuts: record the keys, pick the action, pick the app.
+private struct ShortcutEditor: View {
+    @State var draft: ShortcutDraft
     let model: MixerModel
     let store: SettingsStore
+    let onClose: () -> Void
 
-    @State private var target: ShortcutTarget = .frontmost
-    @State private var action: ShortcutAction = .volumeUp
-    @State private var key: RecordedKey?
+    private enum TargetChoice: Hashable {
+        case target(ShortcutTarget)
+        case otherApp
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Picker("App", selection: $target) {
-                    Text("Frontmost app").tag(ShortcutTarget.frontmost)
-                    Divider()
-                    ForEach(model.knownApps(), id: \.bundleID) { app in
-                        Text(app.name).tag(ShortcutTarget.app(bundleID: app.bundleID))
+        VStack(spacing: 0) {
+            Form {
+                Section {
+                    ForEach(draft.actions) { action in
+                        LabeledContent(draft.actions.count > 1 ? action.title : "Shortcut") {
+                            KeyRecorderView(key: keyBinding(for: action))
+                        }
                     }
+                    Picker("Action", selection: $draft.kind) {
+                        ForEach(ShortcutAction.allCases) { action in
+                            Text(action.title).tag(ShortcutDraft.Kind.single(action))
+                        }
+                        if !draft.isEditing {
+                            Divider()
+                            Text("Up, down and mute (3 shortcuts)").tag(ShortcutDraft.Kind.fullSet)
+                        }
+                    }
+                    Picker("App", selection: targetChoice) {
+                        Text("Frontmost app").tag(TargetChoice.target(.frontmost))
+                        Divider()
+                        ForEach(appChoices, id: \.bundleID) { app in
+                            Text(app.name).tag(TargetChoice.target(.app(bundleID: app.bundleID)))
+                        }
+                        Divider()
+                        Text("Other app…").tag(TargetChoice.otherApp)
+                    }
+                } footer: {
+                    footer
                 }
-                Picker("Action", selection: $action) {
-                    ForEach(ShortcutAction.allCases) { Text($0.title).tag($0) }
-                }
-                .labelsHidden()
-                .frame(width: 140)
             }
+            .formStyle(.grouped)
+
             HStack {
-                ShortcutRecorder(key: $key)
                 Spacer()
-                Button("Add Shortcut") {
-                    guard let key else { return }
-                    store.addShortcut(ShortcutBinding(key: key, action: action, target: target))
-                    self.key = nil
-                }
-                .disabled(key == nil)
+                Button("Cancel", action: onClose)
+                    .keyboardShortcut(.cancelAction)
+                Button(draft.isEditing ? "Save" : "Add", action: save)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!draft.canSave(existing: store.settings.shortcuts))
             }
+            .padding([.horizontal, .bottom], 20)
         }
-        .padding(.vertical, 4)
+        .frame(width: 460)
+    }
+
+    @ViewBuilder private var footer: some View {
+        let problems = draft.problems(existing: store.settings.shortcuts)
+        if !problems.isEmpty {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Array(problems.enumerated()), id: \.offset) { _, problem in
+                    Label(message(for: problem), systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+            }
+        } else if !draft.isComplete {
+            Text(draft.actions.count > 1
+                 ? "Click each box and press the keys you want for it."
+                 : "Click the box and press the keys you want, for example ⌃⌥↑.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func message(for problem: ShortcutDraft.Problem) -> String {
+        switch problem {
+        case .sameKeyTwice(let key):
+            "\(key.display) is used twice. Each action needs its own keys."
+        case .alreadyUsed(let key, let other):
+            "\(key.display) is already used for \(other.action.title) → \(targetName(other.target, model: model))."
+        }
+    }
+
+    private func keyBinding(for action: ShortcutAction) -> Binding<RecordedKey?> {
+        Binding(
+            get: { draft.key(for: action) },
+            set: { draft.setKey($0, for: action) }
+        )
+    }
+
+    /// Running apps and apps seen before, plus the one this shortcut already uses.
+    private var appChoices: [(bundleID: String, name: String)] {
+        var apps = model.knownApps()
+        if case .app(let bundleID) = draft.target, !apps.contains(where: { $0.bundleID == bundleID }) {
+            apps.insert((bundleID, model.displayName(for: bundleID)), at: 0)
+        }
+        return apps
+    }
+
+    private var targetChoice: Binding<TargetChoice> {
+        Binding(
+            get: { .target(draft.target) },
+            set: { choice in
+                switch choice {
+                case .target(let target): draft.target = target
+                case .otherApp: chooseOtherApp()
+                }
+            }
+        )
+    }
+
+    private func chooseOtherApp() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose an App"
+        panel.prompt = "Choose"
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        guard panel.runModal() == .OK, let url = panel.url,
+              let app = AppBundleInfo.read(at: url),
+              app.bundleID != Bundle.main.bundleIdentifier
+        else { return }
+        store.rememberAppName(app.name, for: app.bundleID)
+        draft.target = .app(bundleID: app.bundleID)
+    }
+
+    private func save() {
+        let bindings = draft.bindings()
+        if draft.isEditing, let binding = bindings.first {
+            store.updateShortcut(binding)
+        } else {
+            store.addShortcuts(bindings)
+        }
+        onClose()
     }
 }
 
-/// Click, then press a key combination. Esc cancels.
-struct ShortcutRecorder: View {
+/// Click, then press a key combination. Esc or clicking elsewhere cancels.
+private struct KeyRecorderView: View {
     @Binding var key: RecordedKey?
-    @State private var recording = false
-    @State private var monitor: Any?
+    @State private var recorder = KeyRecorderController(hotKeys: HotKeyCenter.shared)
 
     var body: some View {
-        Button(title) {
-            recording ? stop() : start()
-        }
-        .onDisappear { stop() }
-    }
-
-    private var title: String {
-        if recording { return "Press a shortcut… (Esc to cancel)" }
-        return key?.display ?? "Record Shortcut"
-    }
-
-    private func start() {
-        recording = true
-        HotKeyCenter.shared.setSuspended(true)
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if Int(event.keyCode) == kVK_Escape {
-                stop()
-            } else if let recorded = RecordedKey(event: event) {
-                key = recorded
-                stop()
-            } else {
-                NSSound.beep()  // needs ⌘, ⌥ or ⌃ so it doesn't steal normal typing
+        VStack(alignment: .trailing, spacing: 4) {
+            Button {
+                if recorder.isRecording {
+                    recorder.cancel()
+                } else {
+                    recorder.start(in: NSApp.keyWindow)
+                }
+            } label: {
+                label
+                    .frame(minWidth: 140)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(recorder.isRecording ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.06))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(recorder.isRecording ? Color.accentColor : Color.primary.opacity(0.15))
+                    )
+                    .contentShape(Rectangle())
             }
-            return nil
+            .buttonStyle(.plain)
+            .help(recorder.isRecording ? "Press the keys, or Esc to cancel" : "Click, then press the keys you want")
+            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { recorder.frameInWindow = $0 }
+
+            if recorder.isRecording, let rejection = recorder.rejection {
+                Text(rejection.message)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 240, alignment: .trailing)
+            }
         }
+        .onAppear { recorder.onRecord = { key = $0 } }
+        .onDisappear { recorder.cancel() }
     }
 
-    private func stop() {
-        if let monitor { NSEvent.removeMonitor(monitor) }
-        monitor = nil
-        if recording {
-            recording = false
-            HotKeyCenter.shared.setSuspended(false)
+    @ViewBuilder private var label: some View {
+        if recorder.isRecording {
+            HStack(spacing: 6) {
+                Image(systemName: "record.circle").foregroundStyle(.red)
+                Text(recorder.heldModifiers.isEmpty ? "Press keys…" : recorder.heldModifiers + "…")
+                    .font(.body.monospaced())
+            }
+        } else if let key {
+            Text(key.display).font(.body.monospaced())
+        } else {
+            Text("Click to record").foregroundStyle(.secondary)
         }
     }
 }
