@@ -99,6 +99,15 @@ Run everything above, plus:
 - [ ] Play an alert sound (`osascript -e beep`): it plays at normal volume, and the list
       shows no "systemsoundserverd" row
 - [ ] Leave music playing for 10 minutes with the volume lowered: no dropouts. Activity Monitor shows Fader using little CPU
+- [ ] With the JBL Go 4 and AirPods both connected and music playing, leave Fader running for a few
+      minutes, then press a volume shortcut about 20 times, a second or two apart: the on-screen
+      overlay answers every press right away, never seconds late. Clicking in the menu feels instant too
+- [ ] With the menu open, start and stop music: the app's row appears and goes away within about 2 s
+- [ ] Right after a rebuild, before allowing access: the menu shows "Allow Access". Click it and allow:
+      the banner goes away and turning an app down works. (If you allow it in System Settings instead,
+      the banner goes away within about 5 s.)
+- [ ] Run `/usr/bin/log stream --predicate 'process == "Fader"' | grep TCC` for 20 seconds: at most one
+      line every 5 seconds before access is allowed, and none at all once it is
 
 ### When a change touches the launcher (`Open Fader.command`)
 

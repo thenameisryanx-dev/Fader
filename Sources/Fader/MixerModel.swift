@@ -29,6 +29,7 @@ final class MixerModel {
     let mainVolume = MainVolumeModel()
 
     @ObservationIgnored let store: SettingsStore
+    @ObservationIgnored private let audio: any AudioSystem
 
     private struct LiveApp {
         var identity: AppIdentity
@@ -47,6 +48,19 @@ final class MixerModel {
     @ObservationIgnored private var pendingRebuild: DispatchWorkItem?
     @ObservationIgnored private var lastFrontmostBundleID: String?
     @ObservationIgnored private var lastControlledBundleID: String?
+    @ObservationIgnored private var permissionSchedule = PermissionCheckSchedule()
+    /// The refresh that's waiting for Core Audio right now, if any.
+    @ObservationIgnored private var refreshing: Task<Void, Never>?
+    /// A refresh was asked for while one was on its way, so do one more afterwards.
+    @ObservationIgnored private var refreshAgain = false
+    @ObservationIgnored private var isShutDown = false
+
+    /// What one look at Core Audio found.
+    private struct Scan: Sendable {
+        let permission: AudioCapturePermission.Status?  // nil when it wasn't looked up this time
+        let device: OutputDevice?
+        let processes: [AudioProcess]
+    }
 
     private nonisolated static let hiddenBundleIDs: Set<String> = [
         "com.apple.coreaudiod",
@@ -60,12 +74,13 @@ final class MixerModel {
         hiddenBundleIDs.contains(bundleID)
     }
 
-    init(store: SettingsStore) {
+    /// Tests pass a pretend `audio` so they never touch real devices or apps.
+    init(store: SettingsStore, audio: any AudioSystem = CoreAudioSystem()) {
         self.store = store
+        self.audio = audio
     }
 
     func start() {
-        permission = AudioCapturePermission.status
         systemListeners = [
             PropertyListener(object: .system, selector: kAudioHardwarePropertyProcessObjectList) { [weak self] in
                 self?.refresh()
@@ -92,6 +107,8 @@ final class MixerModel {
     }
 
     func shutdown() {
+        isShutDown = true
+        refreshAgain = false
         timer?.invalidate()
         systemListeners = []
         deviceListeners = []
@@ -105,9 +122,14 @@ final class MixerModel {
     func requestPermission() {
         AudioCapturePermission.request { [weak self] _ in
             guard let self else { return }
-            permission = AudioCapturePermission.status
-            if permission == .unknown { permission = .authorized }  // TCC lookup unavailable; let the system decide
-            refresh()
+            let audio = self.audio
+            Task {
+                // Looked up off the main thread, like every other question to macOS (see `refresh`).
+                let status = await Task.detached { audio.permissionStatus() }.value
+                self.permission = status == .unknown ? .authorized : status  // TCC lookup unavailable; let the system decide
+                self.permissionSchedule.checked(at: Date())
+                self.refresh()
+            }
         }
     }
 
@@ -194,13 +216,48 @@ final class MixerModel {
 
     // MARK: Refresh
 
+    /// Looks for apps playing sound and the current output device.
+    ///
+    /// Core Audio and macOS's privacy service answer from other processes (coreaudiod, tccd), and
+    /// with the JBL Go 4 and AirPods connected an answer sometimes took seconds. Asking on the main
+    /// thread froze clicks and shortcuts until then (one shortcut arrived 4.2 s late), so the
+    /// questions go to a background thread and only the answers are handled here.
+    /// One refresh at a time; requests that come in meanwhile become a single refresh afterwards.
     func refresh() {
-        if permission != .authorized {
-            let status = AudioCapturePermission.status
-            if status != .unknown { permission = status }
+        guard !isShutDown else { return }
+        guard refreshing == nil else {
+            refreshAgain = true
+            return
         }
+        refreshing = Task {
+            repeat {
+                refreshAgain = false
+                let checkPermission = permissionSchedule.isDue(permission: permission, now: Date())
+                if checkPermission { permissionSchedule.checked(at: Date()) }
+                let audio = self.audio
+                let scan = await Task.detached {
+                    Scan(
+                        permission: checkPermission ? audio.permissionStatus() : nil,
+                        device: audio.defaultOutputDevice(),
+                        processes: audio.audioProcesses()
+                    )
+                }.value
+                guard !isShutDown else { break }  // quitting: leave the taps alone
+                show(scan)
+            } while refreshAgain
+            refreshing = nil
+        }
+    }
 
-        let device = AudioDiscovery.defaultOutputDevice()
+    /// Returns once the refresh on its way (and any queued after it) has finished.
+    func waitForRefresh() async {
+        while let refreshing { await refreshing.value }
+    }
+
+    private func show(_ scan: Scan) {
+        permission = PermissionCheckSchedule.merge(permission, with: scan.permission)
+
+        let device = scan.device
         if device != outputDevice {
             outputDevice = device
             observe(device)
@@ -210,7 +267,7 @@ final class MixerModel {
             }
         }
 
-        let processes = AudioDiscovery.audioProcesses()
+        let processes = scan.processes
         resolver.prune(keeping: Set(processes.map(\.pid)))
         let ownPID = getpid()
         var next: [String: LiveApp] = [:]

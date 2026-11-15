@@ -2,18 +2,34 @@ import AppKit
 import CoreAudio
 import Darwin
 
-struct OutputDevice: Equatable {
+struct OutputDevice: Equatable, Sendable {
     let id: AudioObjectID
     let uid: String
     let name: String
 }
 
 /// One Core Audio client process (an app can own several, e.g. browser helpers).
-struct AudioProcess {
+struct AudioProcess: Sendable {
     let objectID: AudioObjectID
     let pid: pid_t
     let bundleID: String?
     let isRunningOutput: Bool
+}
+
+/// What the mixer asks Core Audio and macOS's privacy service (TCC) on every refresh.
+/// Each call waits for another process (coreaudiod or tccd) to answer, which sometimes takes
+/// seconds, so `MixerModel` only calls these from a background thread. Tests use a pretend one.
+protocol AudioSystem: Sendable {
+    func defaultOutputDevice() -> OutputDevice?
+    func audioProcesses() -> [AudioProcess]
+    func permissionStatus() -> AudioCapturePermission.Status
+}
+
+/// The real `AudioSystem`.
+struct CoreAudioSystem: AudioSystem {
+    func defaultOutputDevice() -> OutputDevice? { AudioDiscovery.defaultOutputDevice() }
+    func audioProcesses() -> [AudioProcess] { AudioDiscovery.audioProcesses() }
+    func permissionStatus() -> AudioCapturePermission.Status { AudioCapturePermission.status }
 }
 
 enum AudioDiscovery {
