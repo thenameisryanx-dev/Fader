@@ -31,10 +31,42 @@ struct HUDTests {
         #expect(sliding.isEmpty, "bar is still sliding: \(sliding)")
     }
 
+    /// Bug: the overlay didn't look like Liquid Glass. It drew SwiftUI glass inside a plain square
+    /// window, with a square shadow. Apple says to use AppKit's glass view with the content inside
+    /// it, like Fader's menu: glass view, content inside, clipped to rounded corners.
+    @Test func overlayIsLiquidGlassBuiltLikeTheMenu() throws {
+        let panel = HUDController.makePanel(showing: HUDView(state: HUDState()))
+        let clip = try #require(panel.contentView)
+        let layer = try #require(clip.layer)
+        #expect(layer.masksToBounds)
+        #expect(layer.cornerRadius == Theme.hudCornerRadius)
+        #expect(layer.cornerCurve == .continuous)
+        #expect(!panel.isOpaque)
+        #expect(panel.backgroundColor == .clear)
+
+        if #available(macOS 26, *) {
+            let glass = try #require(clip.subviews.first as? NSGlassEffectView)
+            #expect(glass.cornerRadius == Theme.hudCornerRadius)
+            #expect(glass.style == .regular)
+            #expect(glass.contentView is NSHostingView<HUDView>)
+        }
+
+        // The content fills the glass exactly: nothing squashed, shifted or left as a bare edge.
+        panel.layoutIfNeeded()
+        let hosting = try #require(firstView(of: NSHostingView<HUDView>.self, in: clip))
+        #expect(clip.frame.size == CGSize(width: 280, height: 64))
+        #expect(hosting.convert(hosting.bounds, to: clip) == clip.bounds)
+    }
+
     // MARK: Helpers
 
     private func spinRunLoop(_ seconds: TimeInterval) {
         RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+    }
+
+    private func firstView<V: NSView>(of type: V.Type, in view: NSView) -> V? {
+        if let match = view as? V { return match }
+        return view.subviews.lazy.compactMap { firstView(of: type, in: $0) }.first
     }
 
     private func progressIndicator(in view: NSView?) -> NSProgressIndicator? {

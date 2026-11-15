@@ -36,18 +36,6 @@ enum Theme {
 }
 
 extension View {
-    /// Liquid Glass behind this view on macOS 26 and later; the older frosted material before that.
-    @ViewBuilder
-    func glassBackground(cornerRadius: CGFloat) -> some View {
-        if #available(macOS 26, *) {
-            glassEffect(.regular, in: .rect(cornerRadius: cornerRadius, style: .continuous))
-        } else {
-            background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        }
-    }
-}
-
-extension View {
     /// Apple's Liquid Glass button on macOS 26 and later; the standard bordered button before that.
     @ViewBuilder
     func glassButton(shape: ButtonBorderShape) -> some View {

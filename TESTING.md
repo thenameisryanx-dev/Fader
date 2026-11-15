@@ -55,6 +55,9 @@ rebuild can look like a new app to macOS.
 - [ ] The slider fill is easy to see in both light and dark mode (System Settings → Appearance)
 - [ ] Switch the accent colour to Graphite (System Settings → Appearance): the sliders turn grey. Switch it back
 - [ ] Use a volume shortcut: the on-screen overlay is glass too, with a bar in your accent colour
+- [ ] Press the shortcut over something colourful (a photo or a bright web page): the overlay is the
+      same Liquid Glass as the menu (the colours behind it blur and bend at its rounded edges), not a
+      flat grey box. Its shadow is rounded with no faint square outline around the corners
 - [ ] Tap a volume shortcut a few times: the overlay's bar lands on each new value the moment you
       press, at the same time as the % number. Hold the key: the bar keeps up with the number and
       stops the moment you let go, without sliding on afterwards or flickering

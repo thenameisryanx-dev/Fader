@@ -57,27 +57,10 @@ final class MenuPanel {
         window.hidesOnDeactivate = false
         window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient]
 
-        hostingView.autoresizingMask = [.width, .height]
-        let background: NSView
-        if #available(macOS 26, *) {
-            // Liquid Glass, like Apple's own menus on macOS 26 and later. The system adapts it
-            // for Reduce Transparency and Increase Contrast by itself.
-            let glass = NSGlassEffectView()
-            glass.cornerRadius = Theme.menuCornerRadius
-            glass.contentView = hostingView
-            background = glass
-        } else {
-            // The frosted background of a real menu, with rounded corners.
-            let frosted = NSVisualEffectView()
-            frosted.material = .menu
-            frosted.blendingMode = .behindWindow
-            frosted.state = .active
-            frosted.maskImage = Self.roundedMask(radius: Theme.menuCornerRadius)
-            hostingView.frame = frosted.bounds
-            frosted.addSubview(hostingView)
-            background = frosted
-        }
-        window.contentView = Self.roundedClip(around: background, radius: Theme.menuCornerRadius)
+        // Liquid Glass, like Apple's own menus on macOS 26 and later.
+        window.contentView = GlassSurface.make(
+            around: hostingView, cornerRadius: Theme.menuCornerRadius, fallback: .menu
+        )
 
         sizeReporter.onChange = { [weak self] in
             // Resize after SwiftUI finishes the current layout pass, not in the middle of it.
@@ -111,33 +94,6 @@ final class MenuPanel {
             // The shadow takes the window's shape; work it out again for the new size.
             window.invalidateShadow()
         }
-    }
-
-    /// A view that cuts `content` to rounded corners. The glass view's backdrop (the part that
-    /// blurs what's behind the menu) is a full rectangle, and macOS draws the window's shadow
-    /// around it, which showed as a faint square outline around the rounded menu.
-    private static func roundedClip(around content: NSView, radius: CGFloat) -> NSView {
-        let clip = NSView()
-        clip.wantsLayer = true
-        clip.layer?.cornerRadius = radius
-        clip.layer?.cornerCurve = .continuous  // the same curve as Liquid Glass corners
-        clip.layer?.masksToBounds = true
-        content.frame = clip.bounds
-        content.autoresizingMask = [.width, .height]
-        clip.addSubview(content)
-        return clip
-    }
-
-    private static func roundedMask(radius: CGFloat) -> NSImage {
-        let size = NSSize(width: radius * 2 + 1, height: radius * 2 + 1)
-        let image = NSImage(size: size, flipped: false) { rect in
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
-            return true
-        }
-        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
-        image.resizingMode = .stretch
-        return image
     }
 }
 
