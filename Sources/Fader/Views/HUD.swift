@@ -68,7 +68,7 @@ final class HUDController {
     }
 }
 
-private struct HUDView: View {
+struct HUDView: View {
     let state: HUDState
 
     var body: some View {
@@ -82,8 +82,12 @@ private struct HUDView: View {
                     Label("Muted", systemImage: "speaker.slash.fill")
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
+                    // Apple's bar slides to each new value over about half a second, so it lagged
+                    // behind every shortcut press. A new id gives SwiftUI a fresh bar for each
+                    // value, and a fresh bar starts out already filled to it.
                     ProgressView(value: Double(state.volume))
                         .progressViewStyle(.linear)
+                        .id(state.volume)
                 }
             }
             Text(state.muted ? "" : "\(Int((state.volume * 100).rounded()))%")
