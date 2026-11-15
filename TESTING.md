@@ -90,6 +90,12 @@ rebuild can look like a new app to macOS.
 - [ ] A shortcut for a specific app controls that app even when another app is in front
 - [ ] A "Frontmost app" shortcut controls the app you're using
 - [ ] Holding volume up or down keeps changing the volume; the on-screen overlay shows the level
+- [ ] Press a volume shortcut on a normal desktop: the overlay hangs just below Fader's menu bar
+      icon (centred under it, like macOS's own volume popup under the Sound icon)
+- [ ] Put an app in full screen (green button, or Safari → View → Enter Full Screen) and press the
+      shortcut: the overlay appears at the top middle of the screen, close to the top edge.
+      Leave full screen and press it again: it's back under the menu bar icon
+- [ ] Hold a shortcut down: the overlay stays in one place while the volume changes
 - [ ] Recording a combination another app already uses shows the ⚠️ warning
 - [ ] Settings → **Add Shortcut…** opens a sheet. Click the box: it turns blue and says "Press keys…".
       Hold ⌃⌥: it shows "⌃⌥…". Press ↑: the box shows ⌃⌥↑ and **Add** turns on

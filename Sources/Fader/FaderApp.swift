@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.showSettings()  // first, so closing the menu leaves Fader active for Settings
             self?.menuBar?.close()
         }))
+        hud.menuBarIconFrame = { [weak self] in self?.menuBar?.iconFrame }
 
         let hotKeys = HotKeyCenter.shared
         hotKeys.onPress = { [weak self] binding in self?.hotKeyPressed(binding) }

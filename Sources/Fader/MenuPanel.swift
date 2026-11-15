@@ -187,10 +187,15 @@ final class MenuBarController {
         if panel.isVisible { close() } else { open() }
     }
 
+    /// Where the icon is on screen, or nil if macOS isn't showing it.
+    var iconFrame: CGRect? {
+        guard let button = statusItem.button, let buttonWindow = button.window else { return nil }
+        return buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
+    }
+
     func open() {
-        guard let button = statusItem.button, let buttonWindow = button.window,
-              let screen = buttonWindow.screen ?? NSScreen.main else { return }
-        let icon = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        guard let button = statusItem.button, let icon = iconFrame,
+              let screen = button.window?.screen ?? NSScreen.main else { return }
         // Like Apple's menus: Fader becomes the active app while its menu is open,
         // so the sliders show in the accent colour instead of grey.
         NSApp.activate()

@@ -17,6 +17,8 @@ final class HUDController {
     private let state = HUDState()
     private var panel: NSPanel?
     private var hideWork: DispatchWorkItem?
+    /// Where Fader's menu bar icon is on screen, so the overlay can hang below it.
+    var menuBarIconFrame: () -> CGRect? = { nil }
 
     func show(name: String, icon: NSImage?, volume: Float, muted: Bool) {
         state.name = name
@@ -26,7 +28,8 @@ final class HUDController {
 
         let panel = self.panel ?? makePanel()
         self.panel = panel
-        position(panel)
+        // Only when it appears: holding a shortcut keeps it in one place.
+        if !panel.isVisible { position(panel) }
         panel.alphaValue = 1
         panel.orderFrontRegardless()
 
@@ -62,9 +65,14 @@ final class HUDController {
 
     private func position(_ panel: NSPanel) {
         guard let screen = NSScreen.main else { return }
-        let frame = screen.visibleFrame
-        let size = panel.frame.size
-        panel.setFrameOrigin(NSPoint(x: frame.midX - size.width / 2, y: frame.minY + 120))
+        let frame = HUDLayout.frame(
+            for: panel.frame.size,
+            screen: screen.frame,
+            visible: screen.visibleFrame,
+            menuBarShowing: MenuBarCheck.isShowing(on: screen),
+            icon: menuBarIconFrame()
+        )
+        panel.setFrameOrigin(frame.origin)
     }
 }
 
