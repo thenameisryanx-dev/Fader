@@ -15,10 +15,17 @@ final class HUDState {
 @MainActor
 final class HUDController {
     private let state = HUDState()
-    private var panel: NSPanel?
-    private var hideWork: DispatchWorkItem?
+    private(set) var panel: NSPanel?
+    /// The next step in hiding the overlay: start fading, then take the window away. A new press
+    /// cancels whichever step is waiting, so an old fade can't hide an overlay that was just shown.
+    private var hideTimer: Timer?
     /// Where Fader's menu bar icon is on screen, so the overlay can hang below it.
     var menuBarIconFrame: () -> CGRect? = { nil }
+    /// How long the overlay stays after the last press, and how long it takes to fade out.
+    var hideDelay: TimeInterval = 1.2
+    var fadeDuration: TimeInterval = 0.25
+    /// Tests use this to put the overlay somewhere off screen instead of under the menu bar.
+    var placeOverride: ((NSPanel) -> Void)?
 
     func show(name: String, icon: NSImage?, volume: Float, muted: Bool) {
         state.name = name
@@ -30,23 +37,30 @@ final class HUDController {
         self.panel = panel
         // Only when it appears: holding a shortcut keeps it in one place.
         let appearing = !panel.isVisible
-        if appearing { position(panel) }
-        panel.alphaValue = 1
+        if appearing { (placeOverride ?? position)(panel) }
+        panel.alphaValue = 1  // also stops a fade-out that's under way
         panel.orderFrontRegardless()
         // The shadow takes the window's shape: work it out from the rounded glass, not a square.
         if appearing { panel.invalidateShadow() }
 
-        hideWork?.cancel()
-        let work = DispatchWorkItem { [weak panel] in
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.25
-                panel?.animator().alphaValue = 0
-            } completionHandler: {
-                MainActor.assumeIsolated { panel?.orderOut(nil) }
-            }
+        hideTimer?.invalidate()
+        hideTimer = after(hideDelay) { [weak self] in self?.fadeOut() }
+    }
+
+    private func fadeOut() {
+        guard let panel else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = fadeDuration
+            panel.animator().alphaValue = 0
         }
-        hideWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: work)
+        hideTimer = after(fadeDuration) { panel.orderOut(nil) }
+    }
+
+    private func after(_ seconds: TimeInterval, run step: @escaping @MainActor () -> Void) -> Timer {
+        let timer = Timer(timeInterval: seconds, repeats: false) { _ in MainActor.assumeIsolated(step) }
+        // .common: it still fires while a menu is open or a slider is being dragged.
+        RunLoop.main.add(timer, forMode: .common)
+        return timer
     }
 
     static func makePanel(showing view: HUDView) -> NSPanel {

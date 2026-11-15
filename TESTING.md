@@ -99,6 +99,9 @@ rebuild can look like a new app to macOS.
       shortcut: the overlay appears at the top middle of the screen, close to the top edge.
       Leave full screen and press it again: it's back under the menu bar icon
 - [ ] Hold a shortcut down: the overlay stays in one place while the volume changes
+- [ ] Press a shortcut once, wait until the overlay starts fading (just over a second), then press
+      it again: the overlay comes straight back, fully visible, and stays about a second before fading.
+      Try it a few times with slightly different timing; it never vanishes right after a press
 - [ ] Recording a combination another app already uses shows the ⚠️ warning
 - [ ] Settings → **Add Shortcut…** opens a sheet. Click the box: it turns blue and says "Press keys…".
       Hold ⌃⌥: it shows "⌃⌥…". Press ↑: the box shows ⌃⌥↑ and **Add** turns on

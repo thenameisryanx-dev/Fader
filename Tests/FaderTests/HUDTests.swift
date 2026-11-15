@@ -58,6 +58,29 @@ struct HUDTests {
         #expect(hosting.convert(hosting.bounds, to: clip) == clip.bounds)
     }
 
+    /// Bug: pressing a shortcut while the overlay was fading out made it vanish anyway. The old
+    /// fade still finished and hid the window, even though a new press had just shown it.
+    @Test func pressDuringFadeOutKeepsOverlayShowing() throws {
+        let hud = HUDController()
+        hud.hideDelay = 0.5
+        hud.fadeDuration = 0.6
+        hud.placeOverride = { $0.setFrameOrigin(NSPoint(x: -20_000, y: 0)) }
+
+        hud.show(name: "Music", icon: nil, volume: 0.5, muted: false)
+        spinRunLoop(0.8)  // the fade started at 0.5 s and would finish at 1.1 s
+        let panel = try #require(hud.panel)
+        #expect(panel.isVisible)
+        #expect(panel.alphaValue < 1, "the fade should be under way before the second press")
+
+        hud.show(name: "Music", icon: nil, volume: 0.6, muted: false)
+        spinRunLoop(0.4)  // 1.2 s: past the old fade's end, before the new press's fade starts (1.3 s)
+        #expect(panel.isVisible)
+        #expect(panel.alphaValue == 1)
+
+        spinRunLoop(1.0)  // 2.2 s: the new fade (1.3 s to 1.9 s) is over, so it has gone away on its own
+        #expect(!panel.isVisible)
+    }
+
     // MARK: Helpers
 
     private func spinRunLoop(_ seconds: TimeInterval) {
