@@ -137,7 +137,20 @@ final class SettingsStore {
     // MARK: Shortcuts
 
     func addShortcut(_ binding: ShortcutBinding) {
-        mutate { $0.shortcuts.append(binding) }
+        addShortcuts([binding])
+    }
+
+    /// Adds several at once (e.g. a volume up / down / mute set) and re-registers hotkeys once.
+    func addShortcuts(_ bindings: [ShortcutBinding]) {
+        guard !bindings.isEmpty else { return }
+        mutate { $0.shortcuts.append(contentsOf: bindings) }
+        onShortcutsChanged?(settings.shortcuts)
+    }
+
+    /// Replaces the shortcut with the same id, keeping its place in the list.
+    func updateShortcut(_ binding: ShortcutBinding) {
+        guard let index = settings.shortcuts.firstIndex(where: { $0.id == binding.id }) else { return }
+        mutate { $0.shortcuts[index] = binding }
         onShortcutsChanged?(settings.shortcuts)
     }
 

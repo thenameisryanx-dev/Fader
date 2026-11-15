@@ -93,6 +93,44 @@ struct SettingsStoreTests {
         #expect(reported.isEmpty)
     }
 
+    @Test func editingAShortcutKeepsItsPlaceAndNotifiesHotKeys() {
+        let store = SettingsStore(fileURL: fileURL)
+        let first = ShortcutBinding(
+            key: RecordedKey(keyCode: 126, modifierFlags: [.control, .option], characters: nil)!,
+            action: .volumeUp, target: .frontmost
+        )
+        let second = ShortcutBinding(
+            key: RecordedKey(keyCode: 125, modifierFlags: [.control, .option], characters: nil)!,
+            action: .volumeDown, target: .frontmost
+        )
+        store.addShortcuts([first, second])
+        var reported: [ShortcutBinding] = []
+        store.onShortcutsChanged = { reported = $0 }
+
+        var edited = first
+        edited.target = .app(bundleID: "com.spotify.client")
+        store.updateShortcut(edited)
+
+        #expect(store.settings.shortcuts == [edited, second])
+        #expect(reported == [edited, second])
+    }
+
+    @Test func addingASetNotifiesHotKeysOnce() {
+        let store = SettingsStore(fileURL: fileURL)
+        var notifications = 0
+        store.onShortcutsChanged = { _ in notifications += 1 }
+        let fKeys = [122, 120, 99]  // F1, F2, F3 (Mac key codes aren't in order)
+        let set = zip(ShortcutAction.allCases, fKeys).map { action, keyCode in
+            ShortcutBinding(
+                key: RecordedKey(keyCode: keyCode, modifierFlags: [], characters: nil)!,
+                action: action, target: .frontmost
+            )
+        }
+        store.addShortcuts(set)
+        #expect(store.settings.shortcuts == set)
+        #expect(notifications == 1)
+    }
+
     // MARK: Settings files from older versions
 
     /// A settings file exactly as version 0.1 writes it. If this stops loading,
