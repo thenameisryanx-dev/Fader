@@ -19,6 +19,8 @@ the first time it comes up, and say what he needs to do by hand (e.g. which manu
    and tell Ryan exactly which manual checks this change needs.
 5. Commit only after `./check.sh` passes and Ryan confirms the manual checks. Then merge the branch into `main`
    and `git push` it: GitHub (public repo thenameisryanx-dev/Fader) is the only backup.
+6. Right after pushing, delete the branch (`git branch -d feature-name`) and any finished worktree,
+   so only `main` is left. Branches are temporary and shouldn't pile up.
 
 ## Code rules
 
