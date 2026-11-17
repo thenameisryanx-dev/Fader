@@ -37,6 +37,8 @@ It runs on Apple Silicon Macs with macOS 15 or newer.
 
 Run `./check.sh` (all automated tests and the app build) after every change, then the manual checks
 in [TESTING.md](TESTING.md). [CLAUDE.md](CLAUDE.md) describes the full workflow.
+GitHub also runs `./check.sh` on every push and pull request (`.github/workflows/check.yml`);
+a green ✓ or red ✗ next to each commit on GitHub shows the result.
 
 ## How it works
 

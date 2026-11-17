@@ -10,6 +10,10 @@ Every change gets two kinds of checks before it's saved as done.
 
 This runs all automated tests and builds the app. If it says ❌, the change isn't done.
 
+GitHub runs the same `./check.sh` on its own Mac after every push and on every pull request.
+After pushing, open the repo's **Actions** tab (or the ✓/✗ next to the latest commit): a red ✗ means
+it failed there even if it passed on your Mac, and the run's log says why.
+
 ## 2. Manual checks (about 5 minutes)
 
 These cover what a computer can't check: whether you actually *hear* the difference.

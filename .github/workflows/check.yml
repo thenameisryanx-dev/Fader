@@ -1,0 +1,35 @@
+# Runs ./check.sh (all tests and the app build) on GitHub's Macs for every push and pull request.
+# A red ✗ next to a commit on GitHub means this failed; click it to see why.
+name: Check
+
+on:
+  push:
+  pull_request:
+
+# A newer push to the same branch cancels the older run that's still going.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # macOS 26 with Xcode 26: check.sh needs SDK 26 or later for the Liquid Glass stamp.
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Show Swift and SDK versions
+        run: |
+          swift --version
+          xcrun --show-sdk-version
+
+      - name: Run ./check.sh
+        run: ./check.sh
+
+      # check.sh only prints a summary; show the full logs when something fails.
+      - name: Show full logs
+        if: failure()
+        run: |
+          echo "::group::Test log"; cat /tmp/fader-test.log 2>/dev/null || true; echo "::endgroup::"
+          echo "::group::Build log"; cat /tmp/fader-build.log 2>/dev/null || true; echo "::endgroup::"
