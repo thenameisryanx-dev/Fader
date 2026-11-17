@@ -49,6 +49,8 @@ final class MixerModel {
     @ObservationIgnored private var lastFrontmostBundleID: String?
     @ObservationIgnored private var lastControlledBundleID: String?
     @ObservationIgnored private var permissionSchedule = PermissionCheckSchedule()
+    /// The clock used to space out permission lookups; tests freeze it.
+    @ObservationIgnored var now: () -> Date = Date.init
     /// The refresh that's waiting for Core Audio right now, if any.
     @ObservationIgnored private var refreshing: Task<Void, Never>?
     /// A refresh was asked for while one was on its way, so do one more afterwards.
@@ -127,7 +129,7 @@ final class MixerModel {
                 // Looked up off the main thread, like every other question to macOS (see `refresh`).
                 let status = await Task.detached { audio.permissionStatus() }.value
                 self.permission = status == .unknown ? .authorized : status  // TCC lookup unavailable; let the system decide
-                self.permissionSchedule.checked(at: Date())
+                self.permissionSchedule.checked(at: self.now())
                 self.refresh()
             }
         }
@@ -232,8 +234,8 @@ final class MixerModel {
         refreshing = Task {
             repeat {
                 refreshAgain = false
-                let checkPermission = permissionSchedule.isDue(permission: permission, now: Date())
-                if checkPermission { permissionSchedule.checked(at: Date()) }
+                let checkPermission = permissionSchedule.isDue(permission: permission, now: now())
+                if checkPermission { permissionSchedule.checked(at: now()) }
                 let audio = self.audio
                 let scan = await Task.detached {
                     Scan(

@@ -13,7 +13,8 @@ struct MixerRefreshTests {
     final class FakeAudio: AudioSystem, @unchecked Sendable {
         private let lock = NSLock()
         private let busy = DispatchGroup()
-        private let asked = DispatchSemaphore(value: 0)
+        private var wasAsked = false
+        private var askedWaiters: [CheckedContinuation<Void, Never>] = []
         private var storedDevice: OutputDevice?
         private var storedProcesses: [AudioProcess]
         private var storedPermission: AudioCapturePermission.Status
@@ -40,34 +41,50 @@ struct MixerRefreshTests {
         var permissionChecks: Int { lock.withLock { storedPermissionChecks } }
 
         /// Makes every answer take its time, like coreaudiod sometimes does with the JBL Go 4 and
-        /// AirPods connected, until `answer()`. Capped at 1 s per call so a failing test can't hang.
+        /// AirPods connected, until `answer()`. Capped at 10 s per call so a failing test can't hang.
+        /// (A short cap let the answer come by itself on GitHub's slower Macs, before the test was ready.)
         func beSlow() { busy.enter() }
         func answer() { busy.leave() }
-
-        /// Returns once a refresh has started asking.
-        func waitUntilAsked() async {
-            await Task.detached { [self] in waitUntilAskedBlocking() }.value
+        private func waitForAnswer() {
+            _ = busy.wait(timeout: .now() + 10)
         }
-        private nonisolated func waitUntilAskedBlocking() {
-            _ = asked.wait(timeout: .now() + 2)
+
+        /// Returns once a refresh has started asking. Waits without holding a thread: on a Mac
+        /// with few cores, a held thread can be the one the refresh needs to start asking.
+        func waitUntilAsked() async {
+            await withCheckedContinuation { continuation in
+                let alreadyAsked = lock.withLock {
+                    if !wasAsked { askedWaiters.append(continuation) }
+                    return wasAsked
+                }
+                if alreadyAsked { continuation.resume() }
+            }
+        }
+        private func noteAsked() {
+            let waiters = lock.withLock {
+                wasAsked = true
+                defer { askedWaiters = [] }
+                return askedWaiters
+            }
+            waiters.forEach { $0.resume() }
         }
 
         func defaultOutputDevice() -> OutputDevice? {
-            asked.signal()
-            _ = busy.wait(timeout: .now() + 1)
+            noteAsked()
+            waitForAnswer()
             return lock.withLock { storedDevice }
         }
         func audioProcesses() -> [AudioProcess] {
-            asked.signal()
-            _ = busy.wait(timeout: .now() + 1)
+            noteAsked()
+            waitForAnswer()
             return lock.withLock {
                 storedScans += 1
                 return storedProcesses
             }
         }
         func permissionStatus() -> AudioCapturePermission.Status {
-            asked.signal()
-            _ = busy.wait(timeout: .now() + 1)
+            noteAsked()
+            waitForAnswer()
             return lock.withLock {
                 storedPermissionChecks += 1
                 return storedPermission
@@ -147,6 +164,9 @@ struct MixerRefreshTests {
     @Test func permissionIsNotLookedUpEveryRefresh() async {
         let audio = FakeAudio(processes: [Self.player], permission: .unknown)
         let model = makeModel(audio)
+        // Frozen clock: on a slow Mac three refreshes can take over 5 s, when a second lookup is due.
+        let now = Date()
+        model.now = { now }
         for _ in 0..<3 {
             model.refresh()
             await model.waitForRefresh()
